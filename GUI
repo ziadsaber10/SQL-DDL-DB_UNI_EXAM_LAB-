@@ -1,0 +1,316 @@
+GUI-DB_UNI_EXAM_LAB-
+Code of GUI for EXAM_LAB_DATA_BASE_TERM_1_UNI
+My Name Is Ziad Saber Abdelfattah Romia CSE Level 3
+import tkinter as tk
+from tkinter import ttk, messagebox
+import pyodbc
+import re
+from datetime import datetime
+
+conn = pyodbc.connect(
+    "Driver={SQL Server};"
+    "Server=DESKTOP-NN4HH3U;"
+    "Database=UniversityManagementSystem;"
+    "Trusted_Connection=yes;"
+)
+cursor = conn.cursor()
+
+
+def is_valid_student_id(student_id):
+    if not student_id.isdigit():
+        return False, "Student ID must contain only English digits."
+
+    cursor.execute("SELECT COUNT(*) FROM StudentsDB WHERE RollNo=?", student_id)
+    if cursor.fetchone()[0] > 0:
+        return False, "Student ID is already in use."
+
+    return True, ""
+
+
+def is_valid_name(name):
+    if not re.match(r'^[A-Za-z\s]+$', name):
+        return False, "Name must contain only English letters."
+    return True, ""
+
+
+def is_valid_email(email):
+    if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', email):
+        return False
+    return True
+
+
+def is_valid_phone(contact):
+    if not re.match(r'^\+?\d{10,15}$', contact):
+        return False, "Phone number must contain only digits and may include a country code."
+    return True, ""
+
+
+def is_valid_dob(dob):
+    try:
+        datetime.strptime(dob, '%Y-%m-%d')
+        return True, ""
+    except ValueError:
+        return False, "Date of birth must be in the format YYYY-MM-DD."
+
+
+def is_valid_address(address):
+    if not re.match(r'^[A-Za-z0-9\s,.-]+$', address):
+        return False, "Address must be written in English only."
+    return True, ""
+
+
+def add_student():
+    student_id = entry_student_id.get()
+    name = entry_name.get()
+    email = entry_email.get()
+    gender = combo_gender.get()
+    contact = entry_contact.get()
+    dob = entry_dob.get()
+    address = entry_address.get()
+
+    if not (student_id and name and email and gender and contact and dob and address):
+        messagebox.showerror("Error", "All fields are required!")
+        return
+
+    is_valid, msg = is_valid_student_id(student_id)
+    if not is_valid:
+        messagebox.showerror("Error", msg)
+        return
+
+    is_valid, msg = is_valid_name(name)
+    if not is_valid:
+        messagebox.showerror("Error", msg)
+        return
+
+    if not is_valid_email(email):
+        messagebox.showerror("Error", "Please enter a valid email!")
+        return
+
+    is_valid, msg = is_valid_phone(contact)
+    if not is_valid:
+        messagebox.showerror("Error", msg)
+        return
+
+    is_valid, msg = is_valid_dob(dob)
+    if not is_valid:
+        messagebox.showerror("Error", msg)
+        return
+
+    is_valid, msg = is_valid_address(address)
+    if not is_valid:
+        messagebox.showerror("Error", msg)
+        return
+
+    try:
+        cursor.execute(
+            """
+            INSERT INTO StudentsDB (RollNo, Name, Email, Gender, Contact, DOB, Address)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            student_id, name, email, gender, contact, dob, address
+        )
+        conn.commit()
+        fetch_students()
+        clear_fields()
+        messagebox.showinfo("Success", "Student added successfully!")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to add student: {e}")
+
+
+def fetch_students():
+    try:
+        cursor.execute("SELECT * FROM StudentsDB")
+        rows = cursor.fetchall()
+        tree.delete(*tree.get_children())
+        for row in rows:
+            tree.insert("", tk.END, values=row)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to fetch data: {e}")
+
+
+def clear_fields():
+    entry_student_id.delete(0, tk.END)
+    entry_name.delete(0, tk.END)
+    entry_email.delete(0, tk.END)
+    combo_gender.set("")
+    entry_contact.delete(0, tk.END)
+    entry_dob.delete(0, tk.END)
+    entry_address.delete(0, tk.END)
+
+
+def update_student():
+    selected_item = tree.focus()
+    if not selected_item:
+        messagebox.showerror("Error", "Please select a student to update!")
+        return
+
+    student_id = entry_student_id.get()
+    name = entry_name.get()
+    email = entry_email.get()
+    gender = combo_gender.get()
+    contact = entry_contact.get()
+    dob = entry_dob.get()
+    address = entry_address.get()
+
+    if not (student_id and name and email and gender and contact and dob and address):
+        messagebox.showerror("Error", "All fields are required!")
+        return
+
+    try:
+        item_values = tree.item(selected_item, "values")
+        old_student_id = item_values[0]
+        cursor.execute(
+            """
+            UPDATE StudentsDB
+            SET RollNo=?, Name=?, Email=?, Gender=?, Contact=?, DOB=?, Address=?
+            WHERE RollNo=?
+            """,
+            student_id, name, email, gender, contact, dob, address, old_student_id
+        )
+        conn.commit()
+        fetch_students()
+        clear_fields()
+        messagebox.showinfo("Success", "Student updated successfully!")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to update data: {e}")
+
+
+def delete_selected_student():
+    selected_item = tree.focus()
+    if not selected_item:
+        messagebox.showerror("Error", "Please select a student to delete!")
+        return
+
+    try:
+
+        student_id = tree.item(selected_item, "values")[0]
+
+        if not student_id.isdigit():
+            messagebox.showerror("Error", "Invalid Student ID format!")
+            return
+
+        cursor.execute("DELETE FROM StudentsDB WHERE RollNo = ?", int(student_id))
+        conn.commit()
+        fetch_students()
+        messagebox.showinfo("Success", "Student deleted successfully!")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to delete student: {e}")
+
+
+def search_students():
+    search_term = entry_search.get()
+
+    if not search_term:
+        messagebox.showerror("Error", "Please enter a search term.")
+        return
+
+    if not re.match(r'^[A-Za-z0-9\s,.-]+$', search_term):
+        messagebox.showerror("Error",
+                             "Please enter a valid search term. Only English letters, digits, or a valid address format allowed.")
+        return
+
+    try:
+        cursor.execute("SELECT * FROM StudentsDB WHERE Name LIKE ? OR RollNo LIKE ?", f"%{search_term}%",
+                       f"%{search_term}%")
+        rows = cursor.fetchall()
+        tree.delete(*tree.get_children())
+        for row in rows:
+            tree.insert("", tk.END, values=row)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to search: {e}")
+
+
+def hide_data():
+    tree.delete(*tree.get_children())
+
+
+root = tk.Tk()
+root.title("Student Management System")
+root.geometry("1200x700")
+root.resizable(False, False)
+
+frame_left = tk.Frame(root, bg="#2C3E50", padx=10, pady=10)
+frame_left.place(relx=0, rely=0, relwidth=0.3, relheight=1)
+
+tk.Label(frame_left, text="Student Management", bg="#2C3E50", fg="white", font=("Arial", 16, "bold")).pack(pady=10)
+
+fields_with_icons = [
+    ("Student ID:", "student_id", "🔢"),
+    ("Name:", "name", "👤"),
+    ("Email:", "email", "✉"),
+    ("Gender:", "gender", "⚥"),
+    ("Phone Number:", "contact", "📞"),
+    ("Date of Birth:", "dob", "📅"),
+    ("Address:", "address", "🏠")
+]
+
+entry_vars = {}
+for label_text, field_name, icon in fields_with_icons:
+    frame_field = tk.Frame(frame_left, bg="#2C3E50", pady=5)
+    frame_field.pack(anchor="w", fill="x")
+    tk.Label(frame_field, text=f"{icon} {label_text}", bg="#2C3E50", fg="white", font=("Arial", 12, "bold")).pack(
+        side=tk.LEFT, padx=5)
+    if field_name == "gender":
+        combo_gender = ttk.Combobox(frame_field, values=["Male", "Female"], font=("Arial", 12), width=20)
+        combo_gender.pack(fill="x", expand=True, padx=5)
+        entry_vars[field_name] = combo_gender
+    else:
+        entry = tk.Entry(frame_field, font=("Arial", 12), width=25)
+        entry.pack(fill="x", expand=True, padx=5)
+        entry_vars[field_name] = entry
+
+entry_student_id = entry_vars["student_id"]
+entry_name = entry_vars["name"]
+entry_email = entry_vars["email"]
+entry_contact = entry_vars["contact"]
+entry_dob = entry_vars["dob"]
+entry_address = entry_vars["address"]
+
+buttons = [
+    ("Add", add_student, "#27AE60"),
+    ("Update", update_student, "#2980B9"),
+    ("Delete", delete_selected_student, "#C0392B"),
+    ("Clear", clear_fields, "#F39C12"),
+    ("Show All Students", fetch_students, "#8E44AD"),
+    ("Hide Data", hide_data, "#E74C3C")  # زر "إخفاء البيانات"
+]
+
+for btn_text, btn_command, btn_color in buttons:
+    tk.Button(frame_left, text=btn_text, command=btn_command, bg=btn_color, fg="white", font=("Arial", 12),
+              height=1).pack(fill="x", pady=5)
+
+frame_right = tk.Frame(root, bg="white")
+frame_right.place(relx=0.3, rely=0, relwidth=0.7, relheight=1)
+
+frame_search = tk.Frame(frame_right, bg="white", pady=5)
+frame_search.pack(fill=tk.X)
+
+tk.Label(frame_search, text="🔍 Search:", bg="white", font=("Arial", 14, "bold")).pack(side=tk.LEFT, padx=5)
+entry_search = tk.Entry(frame_search, font=("Arial", 12))
+entry_search.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+tk.Button(frame_search, text="Search", command=search_students, bg="#3498DB", fg="white", font=("Arial", 12)).pack(
+    side=tk.LEFT, padx=5)
+tk.Button(frame_search, text="Refresh Data", command=fetch_students, bg="#2ECC71", fg="white", font=("Arial", 12)).pack(
+    side=tk.LEFT, padx=5)
+tk.Button(frame_search, text="Delete Selected Student", command=delete_selected_student, bg="#E74C3C", fg="white",
+          font=("Arial", 12)).pack(pady=10)
+
+tree = ttk.Treeview(frame_right, columns=("RollNo", "Name", "Email", "Gender", "Contact", "DOB", "Address"),
+                    show="headings")
+columns = [
+    ("RollNo", "Student ID", 100),
+    ("Name", "Name", 150),
+    ("Email", "Email", 200),
+    ("Gender", "Gender", 100),
+    ("Contact", "Phone Number", 150),
+    ("DOB", "Date of Birth", 150),
+    ("Address", "Address", 200)
+]
+
+for col_id, col_text, col_width in columns:
+    tree.heading(col_id, text=col_text)
+    tree.column(col_id, width=col_width)
+
+tree.pack(fill=tk.BOTH, expand=True)
+
+root.mainloop()
