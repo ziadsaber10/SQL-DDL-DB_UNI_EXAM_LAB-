@@ -1,0 +1,211 @@
+SQL-DDL-DB_UNI_EXAM_LAB-
+Code of SQL &amp; DDL for EXAM_LAB_DATA_BASE_TERM_1_UNI
+My Name Is Ziad Saber Abdelfattah Romia CSE Level 3
+create table faculty (
+    faculty_id varchar(10) primary key,
+    firstname nvarchar(50) not null,
+    lastname nvarchar(50) not null,
+    email nvarchar(100) unique not null,
+    department nvarchar(50) not null,
+    hiredate date not null,
+    status nvarchar(20) check (status in ('active', 'on leave', 'retired'))
+);
+
+
+create table student (
+    student_id varchar(10) primary key,
+    firstname nvarchar(50) not null,
+    lastname nvarchar(50) not null,
+    email nvarchar(100) unique not null,
+    dateofbirth date not null,
+    enrollmentdate date not null,
+    status nvarchar(20) check (status in ('active', 'inactive', 'graduated'))
+);
+
+
+create table department (
+    dept_id varchar(10) primary key,
+    deptname nvarchar(100) unique not null,
+    headofdept varchar(10) references faculty(faculty_id),
+    location nvarchar(50)
+);
+
+
+create table program (
+    program_id varchar(10) primary key,
+    programname nvarchar(100) not null,
+    dept_id varchar(10) references department(dept_id),
+    totalcredits int not null,
+    degreelevel nvarchar(20) check (degreelevel in ('bachelor', 'master', 'doctorate')),
+    duration int not null
+);
+
+
+create table course (
+    course_id varchar(10) primary key,
+    coursetitle nvarchar(100) not null,
+    dept_id varchar(10) references department(dept_id),
+    credits int not null check (credits > 0),
+    description nvarchar(max),
+    prerequisites nvarchar(200)
+);
+
+
+create table schedule (
+    schedule_id varchar(10) primary key,
+    course_id varchar(10) references course(course_id),
+    faculty_id varchar(10) references faculty(faculty_id),
+    roomnumber nvarchar(10),
+    dayofweek nvarchar(10),
+    starttime time,
+    endtime time,
+    semester int check (semester in (1, 2)),
+    academicyear int
+);
+
+
+create table enrollment (
+    student_id varchar(10),
+    program_id varchar(10),
+    enrollmentdate date not null,
+    expectedgraddate date,
+    status nvarchar(20) check (status in ('active', 'completed', 'withdrawn')),
+    primary key (student_id, program_id),
+    foreign key (student_id) references student(student_id),
+    foreign key (program_id) references program(program_id)
+);
+
+
+create table registration (
+    student_id varchar(10),
+    course_id varchar(10),
+    schedule_id varchar(10),
+    semester int check (semester in (1, 2)),
+    academicyear int,
+    grade nvarchar(2),
+    gpa decimal(3,2) check (gpa >= 0.0 and gpa <= 4.0),
+    status nvarchar(20) check (status in ('registered', 'completed', 'withdrawn')),
+    primary key (student_id, course_id, academicyear, semester),
+    foreign key (student_id) references student(student_id),
+    foreign key (course_id) references course(course_id),
+    foreign key (schedule_id) references schedule(schedule_id)
+);
+
+
+create index idx_student_name on student(lastname, firstname);
+create index idx_faculty_name on faculty(lastname, firstname);
+create index idx_course_title on course(coursetitle);
+create index idx_schedule_semester on schedule(semester, academicyear);
+
+create table studentsdb (
+    rollno int primary key,
+    name nvarchar(100),
+    email nvarchar(100),
+    gender nvarchar(10),
+    contact nvarchar(15),
+    dob date,
+    address nvarchar(255)
+);
+
+select rollno
+from studentsdb
+where isnumeric(rollno) = 0 or rollno like '% %' or rollno = '';
+
+select rollno
+from studentsdb
+where isnumeric(rollno) = 1;
+
+alter table studentsdb
+alter column rollno int;
+
+
+alter table studentsdb
+drop constraint pk__students__7886d5a0da6d9383;
+
+
+update studentsdb
+set rollno = null
+where isnumeric(rollno) = 0 or rollno like '% %' or rollno = '';
+
+
+alter table studentsdb
+alter column rollno int;
+
+
+alter table studentsdb
+add constraint pk_rollno primary key (rollno);
+
+select name
+from sys.key_constraints
+where type = 'pk' and parent_object_id = object_id('studentsdb');
+
+alter table studentsdb
+alter column rollno int;
+
+alter table studentsdb
+add constraint pk_studentsdb primary key (rollno);
+
+select *
+from studentsdb
+where rollno is null;
+
+select rollno
+from studentsdb;
+
+update studentsdb
+set rollno = 999
+where rollno is null;
+
+select *
+from studentsdb
+where rollno is null;
+
+alter table studentsdb
+add constraint pk_studentsdb primary key (rollno);
+
+select *
+from studentsdb
+where rollno is null;
+
+alter table studentsdb
+alter column rollno int not null;
+
+alter table studentsdb
+add constraint pk_studentsdb primary key (rollno);
+
+select
+    k.name as constraintname,
+    c.name as columnname
+from 
+    sys.key_constraints k
+join 
+    sys.index_columns ic on k.parent_object_id = ic.object_id and k.unique_index_id = ic.index_id
+join 
+    sys.columns c on ic.object_id = c.object_id and ic.column_id = c.column_id
+where 
+    k.parent_object_id = object_id('studentsdb');
+
+alter table studentsdb
+drop constraint pk_studentsdb;
+
+select rollno, count(*)
+from studentsdb
+group by rollno
+having count(*) > 1;
+
+alter table studentsdb
+add constraint pk_studentsdb primary key (rollno);
+
+select 
+    k.name as constraintname,
+    c.name as columnname
+from 
+    sys.key_constraints k
+join 
+    sys.index_columns ic on k.parent_object_id = ic.object_id and k.unique_index_id = ic.index_id
+join 
+    sys.columns c on ic.object_id = c.object_id and ic.column_id = c.column_id
+where 
+    k.parent_object_id = object_id('studentsdb');
+delete from 
+select * from studentsdb ;
